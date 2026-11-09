@@ -220,7 +220,79 @@ function nextQuestion(){
  const s=document.querySelector('input[name=q]:checked');if(!s){alert('Silakan pilih salah satu jawaban sebelum melanjutkan.');return;}
  answers[current]=+s.value;if(current<questions.length-1){current++;render();}else finish();
 }
-async function finish(){
+async function finish() {
+  // Pastikan seluruh soal telah dijawab
+  if (answers.some(answer => answer === undefined)) {
+    alert("Masih terdapat soal yang belum dijawab.");
+    return;
+  }
+
+  // Ubah jawaban peserta ke format yang dikirim ke server
+  const formattedAnswers = answers.map((answerIndex, index) => {
+    const letters = ["A", "B", "C", "D"];
+
+    return {
+      id: questions[index].id,
+      answer: letters[answerIndex]
+    };
+  });
+
+  // Tampilkan status pengiriman
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("nextBtn").textContent =
+    "Mengirim jawaban...";
+
+  try {
+    const payload = {
+      action: "submitAssessment",
+      nis: student.nis,
+      name: student.name,
+      class: student.class,
+      answers: formattedAnswers
+    };
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.status !== "success") {
+      throw new Error(data.message || "Penilaian gagal.");
+    }
+
+    // Tampilkan hasil dari Google Apps Script
+    hideAll();
+    document.getElementById("resultPage")
+      .classList.remove("hidden");
+
+    document.getElementById("score").textContent =
+      data.result.score;
+
+    document.getElementById("feedback").textContent =
+      `Hasil Anda: ${data.result.correct} jawaban benar dari ` +
+      `${data.result.total} soal.`;
+
+    document.getElementById("saveStatus").textContent =
+      "✓ Penilaian dilakukan oleh server dan hasil telah tersimpan.";
+
+  } catch (error) {
+
+    alert(
+      "Terjadi kesalahan saat mengirim jawaban: " +
+      error.message
+    );
+
+    document.getElementById("nextBtn").disabled = false;
+
+    document.getElementById("nextBtn").textContent =
+      "Selesaikan Asesmen ✓";
+  }
+}
  let correct=0;answers.forEach((a,i)=>{if(questions[i].answer===['A','B','C','D'][a])correct++;});
  const score=Math.round(correct/questions.length*100);
  hideAll();document.getElementById('resultPage').classList.remove('hidden');
